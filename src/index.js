@@ -16,6 +16,8 @@ import './style.css';
  * @version 1.4
  */
 
+window.BMapLib = window.BMapLib || {};
+
 // 声明baidu包
 var baidu = baidu || {
 	version: '1.3.9',
@@ -179,38 +181,6 @@ baidu.guid = '$BAIDU$';
 
 	// 声明快捷方法
 	baidu.getStyle = baidu.dom.getStyle;
-
-	/**
-	 * 为类型构造器建立继承关系
-	 * @name baidu.lang.inherits
-	 * @function
-	 * @grammar baidu.lang.inherits(subClass, superClass[, className])
-	 * @param {Function} subClass 子类构造器
-	 * @param {Function} superClass 父类构造器
-	 * @param {string} className 类名标识
-	 * @remark 使subClass继承superClass的prototype，
-	 * 因此subClass的实例能够使用superClass的prototype中定义的所有属性和方法。<br>
-	 * 这个函数实际上是建立了subClass和superClass的原型链集成，并对subClass进行了constructor修正。<br>
-	 * <strong>注意：如果要继承构造函数，需要在subClass里面call一下，具体见下面的demo例子</strong>
-	 * @shortcut inherits
-	 * @meta standard
-	 * @see baidu.lang.Class
-	 */
-	baidu.lang.inherits = function (subClass, superClass, className) {
-		let key;
-		const selfProps = subClass.prototype;
-		const Clazz = function () {};
-		Clazz.prototype = superClass.prototype;
-		const proto = (subClass.prototype = new Clazz());
-		for (key in selfProps) {
-			proto[key] = selfProps[key];
-		}
-		subClass.prototype.constructor = subClass;
-		subClass.superClass = superClass.prototype;
-		if (typeof className === 'string') {
-			proto._className = className;
-		}
-	};
 
 	/**
 	 * 获取目标元素所属的document对象
@@ -483,447 +453,407 @@ const stylePrefix = baidu.isMobile() ? '_mobile' : '_deskTop';
  * @example <b>参考示例：</b><br />
  */
 
-const TrafficControl = function (options) {
+const TrafficControl = (window.BMapLib = function (options) {
 	try {
 		BMap;
 	} catch (e) {
 		throw Error('Baidu Map JS API is not ready yet!');
 	}
-	baidu.lang.inherits(TrafficControl, BMap.Control, 'TrafficControl');
+	if (!TrafficControl.prototype.initialize) {
+		initTrafficControl();
+	}
+	for (const pro in TrafficControl.prototype) {
+		this[pro] = TrafficControl.prototype[pro];
+	}
 	// 默认停靠位置和偏移量
-	this.defaultAnchor = BMAP_ANCHOR_TOP_RIGHT;
+	this.defaultAnchor = BMAP_ANCHOR_TOP_LEFT;
 	this.defaultOffset = new BMap.Size(10, 10);
 	this.showPanel = options && options.showPanel;
-};
+	// 用户设置停靠位置和偏移量
+	if (options.anchor) {
+		this.setAnchor(options.anchor);
+	}
+	if (options.offset) {
+		this.setOffset(options.offset);
+	}
+});
 
-/**
- * 实现父类的initialize方法
- * @ignore
- * @param {Map} map Baidu map的实例对象
- * @example <b>参考示例：</b><br />
- * var traffic = new BMapLib.TrafficControl.initialize(map);
- */
-TrafficControl.prototype.initialize = function (map) {
-	const btn = create('div', {
-		title: '显示交通流量',
-		id: 'tcBtn',
-		class: `maplibTcBtn${stylePrefix} maplibTcBtnOff${stylePrefix}`,
-	});
-	map.getContainer().appendChild(btn);
-	this._map = map;
-	this._popUpDiv(this, btn);
-	this.btn = btn;
-	// 将创建的dom元素返回
-	return btn;
-};
-
-/**
- * popUpDiv 类的构造函数
- * @class 私有类，创建交通流量控制面板。
- * 实例化该类后，即可调用该类提供的show
- * 方法打开控制面板。
- *
- * @constructor
- * @param {TrafficControl} TrafficControl的实例对象
- * @param {DOM} button 创建的DOM按钮
- * @example <b>参考示例：</b><br />
- * var pop = new BMapLib.TrafficControl._popUpDiv(map);<br/>pop.show();
- */
-TrafficControl.prototype._popUpDiv = function (me, btn) {
-	const _me = this;
-	const arrRealTimeTxt = ['查看实时路况', '流量预测'];
-	const arrPredictionTxt = ['查看流量预测', '实时路况'];
-	// 是否是实时路况
-	let bRealTime = true;
-	// 该弹出层是打开还是关闭状态
-	this.bShow = false;
-	const thisPop = this;
-	// 重置绑定状态
-	thisPop._bind = false;
-	// 将弹出div的HTML插入到dom中
-	insertHTML(btn, 'afterEnd', genHtml());
-	insertHTML(btn, 'afterEnd', genHtmlMobile());
-	// 将用到的dom元素都存到变量中
-	const viewPreDom = baidu.g('tcViewPrediction');
-	const dvPredition = baidu.g('tcPredition');
-	const dvTcTitle = baidu.g('tcTitle');
-	const dvTcDay = baidu.g('maplibTcDay');
-	const dvTcNow = baidu.g('tcNow');
-	const dvTcWrap = baidu.g('tcWrap');
-	const dvTcTimeBox = baidu.g('tcTimeBox');
-	const dvTcUpdate = baidu.g('tcUpdate');
-	const weekName = ['一', '二', '三', '四', '五', '六', '日'];
-	// 处理拖动时间条动作
-	const timeline = new SetBar(_me);
+function initTrafficControl() {
+	// 通过JavaScript的prototype属性继承于BMap.Control
+	TrafficControl.prototype = new BMap.Control();
 
 	/**
-	 * 显示控制面板             *
-	 * @return 无返回值
-	 *
+	 * 实现父类的initialize方法
+	 * @ignore
+	 * @param {Map} map Baidu map的实例对象
 	 * @example <b>参考示例：</b><br />
-	 * pop.show();
+	 * var traffic = new BMapLib.TrafficControl.initialize(map);
 	 */
-	this.show = function () {
-		initialize();
-		_me.bShow = true;
-		baidu.dom.removeClass(btn, `maplibTcBtnOff${stylePrefix}`);
+	TrafficControl.prototype.initialize = function (map) {
+		const btn = create('div', {
+			title: '显示交通流量',
+			id: 'tcBtn',
+			class: `maplibTcBtn${stylePrefix} maplibTcBtnOff${stylePrefix}`,
+		});
+		map.getContainer().appendChild(btn);
+		this._map = map;
+		this._popUpDiv(this, btn);
+		this.btn = btn;
+		// 将创建的dom元素返回
+		return btn;
 	};
 
 	/**
-	 * 隐藏控制面板             *
-	 * @return 无返回值
+	 * popUpDiv 类的构造函数
+	 * @class 私有类，创建交通流量控制面板。
+	 * 实例化该类后，即可调用该类提供的show
+	 * 方法打开控制面板。
 	 *
+	 * @constructor
+	 * @param {TrafficControl} TrafficControl的实例对象
+	 * @param {DOM} button 创建的DOM按钮
 	 * @example <b>参考示例：</b><br />
-	 * pop.hide();
+	 * var pop = new BMapLib.TrafficControl._popUpDiv(map);<br/>pop.show();
 	 */
-	this.hide = function () {
-		_me.bShow = false;
-		baidu.dom.addClass(btn, `maplibTcBtnOff${stylePrefix}`);
-		if (baidu.isMobile()) {
-			baidu.dom.addClass('tcWrap_mobile', 'maplibTfctrHide');
-		} else {
-			baidu.dom.addClass('tcWrap', 'maplibTcHide');
-			baidu.dom.addClass('tcPredition', 'maplibTcHide');
-		}
-		_me.hideTraffic();
-	};
-
-	/**
-	 * 返回该控制面板的状态             *
-	 * @return {Boolean} bShow 返回该控制面板的状态
-	 *
-	 * @example <b>参考示例：</b><br />
-	 * pop.show();
-	 */
-	this.isbShow = function () {
-		return _me.bShow;
-	};
-
-	/**
-	 * 定位控制面板
-	 * @param {Size} size 百度地图基础类size
-	 * @return 无返回值
-	 *
-	 * @example <b>参考示例：</b><br />
-	 * pop.setPopOffset();
-	 */
-	this.setPopOffset = function (size) {
-		const controlHeight = 24;
-		// 弹出层的offset
-		const offsetH = `${size.height + controlHeight}px`;
-		const offsetW = `${size.width}px`;
-
-		switch (_me.getAnchor()) {
-		// 左上
-		case BMAP_ANCHOR_TOP_LEFT:
-			dvTcWrap.style.top = offsetH;
-			dvTcWrap.style.left = offsetW;
-			break;
-			// 右上
-		case BMAP_ANCHOR_TOP_RIGHT:
-			dvTcWrap.style.top = offsetH;
-			dvTcWrap.style.right = offsetW;
-			break;
-			// 右下
-		case BMAP_ANCHOR_BOTTOM_RIGHT:
-			dvTcWrap.style.bottom = offsetH;
-			dvTcWrap.style.right = offsetW;
-			break;
-			// 左下
-		case BMAP_ANCHOR_BOTTOM_LEFT:
-			dvTcWrap.style.bottom = offsetH;
-			dvTcWrap.style.left = offsetW;
-			break;
-		default:
-			break;
-		}
-	};
-	const eventName = baidu.isMobile() ? 'ontouchend' : 'onclick';
-	// 绑定事件，控制弹出层的显示跟隐藏
-	baidu.event.on(btn, eventName, () => {
-		showOrHidePopDiv();
-	});
-	baidu.event.on('tcClose', 'click', () => {
-		showOrHidePopDiv();
-	});
-
-	// 控制弹出层跟trafficLayer的隐藏或者显示。
-	function showOrHidePopDiv() {
-		if (!thisPop.isbShow()) {
-			thisPop.setPopOffset(_me.getOffset());
-			thisPop.show();
-		} else {
-			thisPop.hide();
-		}
-	}
-
-	// 初始化面板的状态
-	function initialize() {
-		dvTcDay.innerHTML = '更新时间';
-		const [txt0, txt1] = arrPredictionTxt;
-		dvTcTitle.innerHTML = txt1;
-		viewPreDom.innerHTML = txt0;
-		baidu.dom.addClass(dvPredition, 'maplibTcHide');
-		dvTcUpdate.style.display = 'block';
-		bRealTime = true;
-		if (baidu.isMobile()) {
-			if (_me.showPanel) {
-				baidu.dom.removeClass('tcWrap_mobile', 'maplibTfctrHide');
-			}
-		} else {
-			baidu.dom.removeClass('tcWrap', 'maplibTcHide');
-		}
-
-		// 初始化a的状态
-		const arrA = baidu.g('tcWeek').getElementsByTagName('a');
-		for (let i = 0; i < 7; i += 1) {
-			arrA[i].className = '';
-		}
-
-		// 获取服务器时间
-		const curTimeUrl =			'http://its.map.baidu.com:8002/traffic/GetCurrentTime?callback=BMapLib.TrafficControl.getTime&';
-		scriptRequest(curTimeUrl + new Date().getTime(), callback);
-		// 3分钟刷新一次,先清除之前可能存在的timer
-		if (_me.timer) {
-			clearInterval(_me.timer);
-		}
-		_me.timer = setInterval(() => {
-			scriptRequest(curTimeUrl + new Date().getTime(), () => {
-				if (_me.bShow) {
-					const t = TrafficControl.curTime;
-					const tHour = t.getHours();
-					dvTcNow.innerHTML = `${tHour < 10 ? `0${tHour}` : tHour}:${
-						t.getMinutes() < 10
-							? `0${t.getMinutes()}`
-							: t.getMinutes()
-					}`;
-					_me.hideTraffic();
-					_me.showTraffic();
-				}
-			});
-		}, 1000 * 3 * 60);
-
-		function callback() {
-			const t = TrafficControl.curTime;
-			const tHour = t.getHours();
-			// 是否绑定了事件，防止重复绑定
-			if (!thisPop._bind) {
-				bindEventToPopDiv(_me);
-				// 私有方法 绑定点击周一到周日事件
-				bindEventToWeek(_me);
-				thisPop._bind = true;
-			}
-			const time = `${tHour < 10 ? `0${tHour}` : tHour}:${
-				t.getMinutes() < 10 ? `0${t.getMinutes()}` : t.getMinutes()
-			}`;
-			dvTcNow.innerHTML = time;
-			_me.hour = tHour;
-			// 0为周日，6为周六，转换成1-7对应周一到周日
-			_me.weekday = t.getDay() == 0 ? 7 : t.getDay();
-			_me.time = time;
-			timeline.setBarTime(tHour);
-		}
-	}
-
-	// 生成手机下的弹出html
-	function genHtmlMobile() {
-		return '<div class="maplibTfctr maplibTfctrHide" id="tcWrap_mobile" style="position: absolute; z-index: 10; -webkit-text-size-adjust: none; bottom: 17px; right: auto; top: auto; left:50%;margin-left:-4.5em;"><div class="maplibTfctr_l"></div><div class="maplibTfctr_c">实时路况</div><div class="maplibTfctr_status"><span class="maplibR">堵</span><span class="maplibY">缓</span><span class="maplibG">畅</span></div></div>';
-	}
-
-	// 生成弹出div中的html
-	function genHtml() {
-		const html = ['<div class="maplibTc maplibTcHide" id="tcWrap">'];
-		html.push('<div class="maplibTcColor" id="tcTitle">实时路况</div>');
-		html.push('<div id="tcRealTime">');
-		html.push(
-			'<div class="maplibTcTime"><span id="maplibTcDay" class="maplibTcCurTime">更新时间</span><span><span class="maplibTcColon">：&nbsp;</span><span class="maplibTcCurTime" id="tcNow"></span><span title="更新" id="tcUpdate" class="maplibTcUpdate"></span> <a href="javascript:void(0)" class="maplibTcView" id="tcViewPrediction">查看流量预测</a><button class="maplibTcClose" id="tcClose"></button></div></div>',
-		);
-		html.push('<div id="tcPredition" class="maplibTcHide">');
-		html.push(
-			'<div class="maplibTcWeekDay"><span>星期</span><ul id="tcWeek"><li><a lang="1" href="javascript:void(0)">一</a></li><li><a lang="2" href="javascript:void(0)">二</a></li><li><a lang="3" href="javascript:void(0)">三</a></li><li><a lang="4" href="javascript:void(0)">四</a></li><li><a lang="5" href="javascript:void(0)">五</a></li><li><a lang="6" href="javascript:void(0)">六</a></li><li><a lang="7" href="javascript:void(0)">日</a></li></ul></div>',
-		);
-		html.push('<div><div class="maplibTcRuleTxt">时间</div>');
-		html.push('<div class="maplibTcRule">');
-		html.push(
-			'<div><div class="maplibTcTimeBox" id="tcTimeBox">20:00</div></div>',
-		);
-		html.push('<div class="maplibTcTimeline" >');
-		html.push('<div class="maplibTcTimelinePrev" id="tcPrev"></div>');
-		html.push('<div class="maplibTcTimeMove" id="tcMove"></div>');
-		html.push('<div class="maplibTcTimelineNext" id="tcNext"></div>');
-		html.push('</div></div></div>');
-		html.push(
-			'<div class="maplibTcClear" style="text-align: center; color: #ccc;">（基于历史流量统计预测 仅供参考）</div>',
-		);
-		html.push('</div></div></div>');
-		return html.join('');
-	}
-
-	// 给弹出层中的按钮绑定事件
-	function bindEventToPopDiv(e) {
-		baidu.event.on('tcViewPrediction', 'click', () => {
-			// 如果当前是实时流量，就显示预测流量，相当于toggle
-			if (bRealTime) {
-				// 显示预测交通流量
-				showPrediction();
-			} else {
-				// 实时路况
-				initialize();
-			}
-		});
-
-		// 显示预测流量
-		function showPrediction() {
-			// 清除每3分钟调用1次实时流量的timer
-			if (e.timer) {
-				clearInterval(e.timer);
-			}
-			const [txt0, txt1] = arrRealTimeTxt;
-			dvTcTitle.innerHTML = txt1;
-			viewPreDom.innerHTML = txt0;
-			baidu.dom.removeClass(dvPredition, 'maplibTcHide');
-			dvTcUpdate.style.display = 'none';
-			bRealTime = false;
-			dvTcDay.innerHTML = `星期${weekName[e.weekday - 1]}`;
-			// 设置预测流量的时间
-			dvTcNow.innerHTML = dvTcTimeBox.innerHTML;
-			e.showTraffic({
-				predictDate: {
-					hour: e.hour,
-					weekday: e.weekday,
-				},
-			});
-		}
-
-		baidu.event.on('tcUpdate', 'click', () => {
-			initialize();
-		});
-	}
-
-	// 更新文字，只在预测流量中调用
-	function updateTimeTxt() {
-		dvTcDay.innerHTML = `星期${weekName[_me.weekday - 1]}`;
-		dvTcNow.innerHTML = dvTcTimeBox.innerHTML;
-	}
-
-	// 绑定预测流量点击事件,周一到周日
-	function bindEventToWeek(__me) {
-		baidu.event.on('tcWeek', 'onclick', (e) => {
-			const elem = e.target || e.srcElement;
-			if (elem.tagName.toLowerCase() == 'a') {
-				const arrA = baidu.g('tcWeek').getElementsByTagName('a');
-				for (let i = 0; i < 7; i += 1) {
-					arrA[i].className = '';
-				}
-				baidu.dom.addClass(elem, 'maplibTcOn');
-				__me.weekday = parseInt(attr(elem, 'lang'), 10);
-				updateTimeTxt();
-				__me.showTraffic({
-					predictDate: {
-						hour: __me.hour,
-						weekday: __me.weekday,
-					},
-				});
-			}
-		});
-	}
-
-	// 时间条相关类
-	function SetBar(__me) {
-		let hour;
-		const bt = baidu.g('tcMove');
-
-		// 开始拖动
-		function dragStart(e) {
-			baidu.on(document, 'onmousemove', dragIng);
-			baidu.on(document, 'onmouseup', dragEnd);
-			if (e && e.preventDefault) {
-				e.preventDefault();
-			} else {
-				window.event.returnValue = false;
-			}
-			return false;
-		}
-
-		// 拖动进行中
-		function dragIng(e) {
-			const x = e.clientX || e.x;
-			const left = getPosition(baidu.G('tcPrev')).left + 9;
-			let margin = x - left - 4;
-			if (margin < 0) margin = 0;
-			if (margin > 165) margin = 165;
-			if (baidu.browser.ie <= 6) {
-				bt.style.marginLeft = `${margin * 0.53}px`;
-			} else {
-				bt.style.marginLeft = `${margin}px`;
-			}
-			dvTcTimeBox.style.marginLeft = `${margin}px`;
-			setTimeBox();
-		}
-
-		// 完成拖动
-		function dragEnd() {
-			baidu.un(document, 'onmousemove', dragIng);
-			baidu.un(document, 'onmouseup', dragEnd);
-			// 完成拖动后显示图层
-			__me.showTraffic({
-				predictDate: {
-					hour: __me.hour,
-					weekday: __me.weekday,
-				},
-			});
-		}
-
-		baidu.on(bt, 'onmousedown', dragStart);
-
-		// 绑定时间条中向前的箭头
-		baidu.on('tcPrev', 'click', () => {
-			setBarBtn('prev');
-		});
-		// 绑定时间条中向后的箭头
-		baidu.on('tcNext', 'click', () => {
-			setBarBtn('next');
-		});
-
-		// 设置前进后退按钮
-		function setBarBtn(key) {
-			const margin = parseInt(
-				baidu.dom.getStyle('tcTimeBox', 'marginLeft'),
-				10,
-			);
-			const n = Math.ceil(((margin - 4) * 24) / 165);
-			setBarTime(key === 'next' ? n + 1 : n - 1);
-		}
+	TrafficControl.prototype._popUpDiv = function (me, btn) {
+		const _me = this;
+		const arrRealTimeTxt = ['查看实时路况', '流量预测'];
+		const arrPredictionTxt = ['查看流量预测', '实时路况'];
+		// 是否是实时路况
+		let bRealTime = true;
+		// 该弹出层是打开还是关闭状态
+		this.bShow = false;
+		const thisPop = this;
+		// 重置绑定状态
+		thisPop._bind = false;
+		// 将弹出div的HTML插入到dom中
+		insertHTML(btn, 'afterEnd', genHtml());
+		insertHTML(btn, 'afterEnd', genHtmlMobile());
+		// 将用到的dom元素都存到变量中
+		const viewPreDom = baidu.g('tcViewPrediction');
+		const dvPredition = baidu.g('tcPredition');
+		const dvTcTitle = baidu.g('tcTitle');
+		const dvTcDay = baidu.g('maplibTcDay');
+		const dvTcNow = baidu.g('tcNow');
+		const dvTcWrap = baidu.g('tcWrap');
+		const dvTcTimeBox = baidu.g('tcTimeBox');
+		const dvTcUpdate = baidu.g('tcUpdate');
+		const weekName = ['一', '二', '三', '四', '五', '六', '日'];
+		// 处理拖动时间条动作
+		const timeline = new SetBar(_me);
 
 		/**
-		 * 设置时间条上的时间
-		 * @param {Number} n 小时从0到24
+		 * 显示控制面板
 		 * @return 无返回值
 		 *
 		 * @example <b>参考示例：</b><br />
-		 * timeBar.setBarTime(10);
+		 * pop.show();
 		 */
-		this.setBarTime = function (n) {
-			setBarTime(n);
+		this.show = function () {
+			initialize();
+			_me.bShow = true;
+			baidu.dom.removeClass(btn, `maplibTcBtnOff${stylePrefix}`);
 		};
 
-		// 设置时间条的时间
-		function setBarTime(n) {
-			if (n < 0) n = 0;
-			if (n > 24) n = 24;
-			hour = n;
-			const margin = n * (165 / 24);
-			dvTcTimeBox.style.marginLeft = `${margin}px`;
-			const _bt = baidu.g('tcMove');
-			if (baidu.browser.ie <= 6 && baidu.browser.ie > 0) {
-				_bt.style.marginLeft = `${margin * 0.53}px`;
+		/**
+		 * 隐藏控制面板
+		 * @return 无返回值
+		 *
+		 * @example <b>参考示例：</b><br />
+		 * pop.hide();
+		 */
+		this.hide = function () {
+			_me.bShow = false;
+			baidu.dom.addClass(btn, `maplibTcBtnOff${stylePrefix}`);
+			if (baidu.isMobile()) {
+				baidu.dom.addClass('tcWrap_mobile', 'maplibTfctrHide');
 			} else {
-				_bt.style.marginLeft = `${margin}px`;
+				baidu.dom.addClass('tcWrap', 'maplibTcHide');
+				baidu.dom.addClass('tcPredition', 'maplibTcHide');
 			}
-			__me.hour = hour;
-			if (bRealTime) {
-				__me.showTraffic();
+			_me.hideTraffic();
+		};
+
+		/**
+		 * 返回该控制面板的状态
+		 * @return {Boolean} bShow 返回该控制面板的状态
+		 *
+		 * @example <b>参考示例：</b><br />
+		 * pop.show();
+		 */
+		this.isbShow = function () {
+			return _me.bShow;
+		};
+
+		/**
+		 * 定位控制面板
+		 * @param {Size} size 百度地图基础类size
+		 * @return 无返回值
+		 *
+		 * @example <b>参考示例：</b><br />
+		 * pop.setPopOffset();
+		 */
+		this.setPopOffset = function (size) {
+			const controlHeight = 24;
+			// 弹出层的offset
+			const offsetH = `${size.height + controlHeight}px`;
+			const offsetW = `${size.width}px`;
+
+			switch (_me.getAnchor()) {
+			// 左上
+			case BMAP_ANCHOR_TOP_LEFT:
+				dvTcWrap.style.top = offsetH;
+				dvTcWrap.style.left = offsetW;
+				break;
+				// 右上
+			case BMAP_ANCHOR_TOP_RIGHT:
+				dvTcWrap.style.top = offsetH;
+				dvTcWrap.style.right = offsetW;
+				break;
+				// 右下
+			case BMAP_ANCHOR_BOTTOM_RIGHT:
+				dvTcWrap.style.bottom = offsetH;
+				dvTcWrap.style.right = offsetW;
+				break;
+				// 左下
+			case BMAP_ANCHOR_BOTTOM_LEFT:
+				dvTcWrap.style.bottom = offsetH;
+				dvTcWrap.style.left = offsetW;
+				break;
+			default:
+				break;
+			}
+		};
+		const eventName = baidu.isMobile() ? 'ontouchend' : 'onclick';
+		// 绑定事件，控制弹出层的显示跟隐藏
+		baidu.event.on(btn, eventName, () => {
+			showOrHidePopDiv();
+		});
+		baidu.event.on('tcClose', 'click', () => {
+			showOrHidePopDiv();
+		});
+
+		// 控制弹出层跟trafficLayer的隐藏或者显示。
+		function showOrHidePopDiv() {
+			if (!thisPop.isbShow()) {
+				thisPop.setPopOffset(_me.getOffset());
+				thisPop.show();
 			} else {
+				thisPop.hide();
+			}
+		}
+
+		// 初始化面板的状态
+		function initialize() {
+			dvTcDay.innerHTML = '更新时间';
+			const [txt0, txt1] = arrPredictionTxt;
+			dvTcTitle.innerHTML = txt1;
+			viewPreDom.innerHTML = txt0;
+			baidu.dom.addClass(dvPredition, 'maplibTcHide');
+			dvTcUpdate.style.display = 'block';
+			bRealTime = true;
+			if (baidu.isMobile()) {
+				if (_me.showPanel) {
+					baidu.dom.removeClass('tcWrap_mobile', 'maplibTfctrHide');
+				}
+			} else {
+				baidu.dom.removeClass('tcWrap', 'maplibTcHide');
+			}
+
+			// 初始化a的状态
+			const arrA = baidu.g('tcWeek').getElementsByTagName('a');
+			for (let i = 0; i < 7; i += 1) {
+				arrA[i].className = '';
+			}
+
+			// 获取服务器时间
+			const curTimeUrl =				'http://its.map.baidu.com:8002/traffic/GetCurrentTime?callback=BMapLib.TrafficControl.getTime&';
+			scriptRequest(curTimeUrl + new Date().getTime(), callback);
+			// 3分钟刷新一次,先清除之前可能存在的timer
+			if (_me.timer) {
+				clearInterval(_me.timer);
+			}
+			_me.timer = setInterval(() => {
+				scriptRequest(curTimeUrl + new Date().getTime(), () => {
+					if (_me.bShow) {
+						const t = TrafficControl.curTime;
+						const tHour = t.getHours();
+						dvTcNow.innerHTML = `${
+							tHour < 10 ? `0${tHour}` : tHour
+						}:${
+							t.getMinutes() < 10
+								? `0${t.getMinutes()}`
+								: t.getMinutes()
+						}`;
+						_me.hideTraffic();
+						_me.showTraffic();
+					}
+				});
+			}, 1000 * 3 * 60);
+
+			function callback() {
+				const t = TrafficControl.curTime;
+				const tHour = t.getHours();
+				// 是否绑定了事件，防止重复绑定
+				if (!thisPop._bind) {
+					bindEventToPopDiv(_me);
+					// 私有方法 绑定点击周一到周日事件
+					bindEventToWeek(_me);
+					thisPop._bind = true;
+				}
+				const time = `${tHour < 10 ? `0${tHour}` : tHour}:${
+					t.getMinutes() < 10 ? `0${t.getMinutes()}` : t.getMinutes()
+				}`;
+				dvTcNow.innerHTML = time;
+				_me.hour = tHour;
+				// 0为周日，6为周六，转换成1-7对应周一到周日
+				_me.weekday = t.getDay() == 0 ? 7 : t.getDay();
+				_me.time = time;
+				timeline.setBarTime(tHour);
+			}
+		}
+
+		// 生成手机下的弹出html
+		function genHtmlMobile() {
+			return '<div class="maplibTfctr maplibTfctrHide" id="tcWrap_mobile" style="position: absolute; z-index: 10; -webkit-text-size-adjust: none; bottom: 17px; right: auto; top: auto; left:50%;margin-left:-4.5em;"><div class="maplibTfctr_l"></div><div class="maplibTfctr_c">实时路况</div><div class="maplibTfctr_status"><span class="maplibR">堵</span><span class="maplibY">缓</span><span class="maplibG">畅</span></div></div>';
+		}
+
+		// 生成弹出div中的html
+		function genHtml() {
+			const html = ['<div class="maplibTc maplibTcHide" id="tcWrap">'];
+			html.push('<div class="maplibTcColor" id="tcTitle">实时路况</div>');
+			html.push('<div id="tcRealTime">');
+			html.push(
+				'<div class="maplibTcTime"><span id="maplibTcDay" class="maplibTcCurTime">更新时间</span><span><span class="maplibTcColon">：&nbsp;</span><span class="maplibTcCurTime" id="tcNow"></span><span title="更新" id="tcUpdate" class="maplibTcUpdate"></span> <a href="javascript:void(0)" class="maplibTcView" id="tcViewPrediction">查看流量预测</a><button class="maplibTcClose" id="tcClose"></button></div></div>',
+			);
+			html.push('<div id="tcPredition" class="maplibTcHide">');
+			html.push(
+				'<div class="maplibTcWeekDay"><span>星期</span><ul id="tcWeek"><li><a lang="1" href="javascript:void(0)">一</a></li><li><a lang="2" href="javascript:void(0)">二</a></li><li><a lang="3" href="javascript:void(0)">三</a></li><li><a lang="4" href="javascript:void(0)">四</a></li><li><a lang="5" href="javascript:void(0)">五</a></li><li><a lang="6" href="javascript:void(0)">六</a></li><li><a lang="7" href="javascript:void(0)">日</a></li></ul></div>',
+			);
+			html.push('<div><div class="maplibTcRuleTxt">时间</div>');
+			html.push('<div class="maplibTcRule">');
+			html.push(
+				'<div><div class="maplibTcTimeBox" id="tcTimeBox">20:00</div></div>',
+			);
+			html.push('<div class="maplibTcTimeline" >');
+			html.push('<div class="maplibTcTimelinePrev" id="tcPrev"></div>');
+			html.push('<div class="maplibTcTimeMove" id="tcMove"></div>');
+			html.push('<div class="maplibTcTimelineNext" id="tcNext"></div>');
+			html.push('</div></div></div>');
+			html.push(
+				'<div class="maplibTcClear" style="text-align: center; color: #ccc;">（基于历史流量统计预测 仅供参考）</div>',
+			);
+			html.push('</div></div></div>');
+			return html.join('');
+		}
+
+		// 给弹出层中的按钮绑定事件
+		function bindEventToPopDiv(e) {
+			baidu.event.on('tcViewPrediction', 'click', () => {
+				// 如果当前是实时流量，就显示预测流量，相当于toggle
+				if (bRealTime) {
+					// 显示预测交通流量
+					showPrediction();
+				} else {
+					// 实时路况
+					initialize();
+				}
+			});
+
+			// 显示预测流量
+			function showPrediction() {
+				// 清除每3分钟调用1次实时流量的timer
+				if (e.timer) {
+					clearInterval(e.timer);
+				}
+				const [txt0, txt1] = arrRealTimeTxt;
+				dvTcTitle.innerHTML = txt1;
+				viewPreDom.innerHTML = txt0;
+				baidu.dom.removeClass(dvPredition, 'maplibTcHide');
+				dvTcUpdate.style.display = 'none';
+				bRealTime = false;
+				dvTcDay.innerHTML = `星期${weekName[e.weekday - 1]}`;
+				// 设置预测流量的时间
+				dvTcNow.innerHTML = dvTcTimeBox.innerHTML;
+				e.showTraffic({
+					predictDate: {
+						hour: e.hour,
+						weekday: e.weekday,
+					},
+				});
+			}
+
+			baidu.event.on('tcUpdate', 'click', () => {
+				initialize();
+			});
+		}
+
+		// 更新文字，只在预测流量中调用
+		function updateTimeTxt() {
+			dvTcDay.innerHTML = `星期${weekName[_me.weekday - 1]}`;
+			dvTcNow.innerHTML = dvTcTimeBox.innerHTML;
+		}
+
+		// 绑定预测流量点击事件,周一到周日
+		function bindEventToWeek(__me) {
+			baidu.event.on('tcWeek', 'onclick', (e) => {
+				const elem = e.target || e.srcElement;
+				if (elem.tagName.toLowerCase() == 'a') {
+					const arrA = baidu.g('tcWeek').getElementsByTagName('a');
+					for (let i = 0; i < 7; i += 1) {
+						arrA[i].className = '';
+					}
+					baidu.dom.addClass(elem, 'maplibTcOn');
+					__me.weekday = parseInt(attr(elem, 'lang'), 10);
+					updateTimeTxt();
+					__me.showTraffic({
+						predictDate: {
+							hour: __me.hour,
+							weekday: __me.weekday,
+						},
+					});
+				}
+			});
+		}
+
+		// 时间条相关类
+		function SetBar(__me) {
+			let hour;
+			const bt = baidu.g('tcMove');
+
+			// 开始拖动
+			function dragStart(e) {
+				baidu.on(document, 'onmousemove', dragIng);
+				baidu.on(document, 'onmouseup', dragEnd);
+				if (e && e.preventDefault) {
+					e.preventDefault();
+				} else {
+					window.event.returnValue = false;
+				}
+				return false;
+			}
+
+			// 拖动进行中
+			function dragIng(e) {
+				const x = e.clientX || e.x;
+				const left = getPosition(baidu.G('tcPrev')).left + 9;
+				let margin = x - left - 4;
+				if (margin < 0) margin = 0;
+				if (margin > 165) margin = 165;
+				if (baidu.browser.ie <= 6) {
+					bt.style.marginLeft = `${margin * 0.53}px`;
+				} else {
+					bt.style.marginLeft = `${margin}px`;
+				}
+				dvTcTimeBox.style.marginLeft = `${margin}px`;
+				setTimeBox();
+			}
+
+			// 完成拖动
+			function dragEnd() {
+				baidu.un(document, 'onmousemove', dragIng);
+				baidu.un(document, 'onmouseup', dragEnd);
+				// 完成拖动后显示图层
 				__me.showTraffic({
 					predictDate: {
 						hour: __me.hour,
@@ -931,96 +861,165 @@ TrafficControl.prototype._popUpDiv = function (me, btn) {
 					},
 				});
 			}
-			setTimeBox();
-		}
 
-		// 设置时间条上里边的内容
-		function setTimeBox() {
-			const margin = parseInt(dvTcTimeBox.style.marginLeft, 10);
-			let n = Math.ceil(((margin - 4) * 24) / 165);
-			hour = n;
-			__me.hour = n;
-			if (n < 10) n = `0${n}`;
-			if (bRealTime) {
-				// 更新时间跟预测的交通流量不一样
-				dvTcNow.innerHTML = __me.time;
-				dvTcTimeBox.innerHTML = `${n}:00`;
-			} else {
-				dvTcNow.innerHTML = dvTcTimeBox.innerHTML = `${n}:00`;
+			baidu.on(bt, 'onmousedown', dragStart);
+
+			// 绑定时间条中向前的箭头
+			baidu.on('tcPrev', 'click', () => {
+				setBarBtn('prev');
+			});
+			// 绑定时间条中向后的箭头
+			baidu.on('tcNext', 'click', () => {
+				setBarBtn('next');
+			});
+
+			// 设置前进后退按钮
+			function setBarBtn(key) {
+				const margin = parseInt(
+					baidu.dom.getStyle('tcTimeBox', 'marginLeft'),
+					10,
+				);
+				const n = Math.ceil(((margin - 4) * 24) / 165);
+				setBarTime(key === 'next' ? n + 1 : n - 1);
+			}
+
+			/**
+			 * 设置时间条上的时间
+			 * @param {Number} n 小时从0到24
+			 * @return 无返回值
+			 *
+			 * @example <b>参考示例：</b><br />
+			 * timeBar.setBarTime(10);
+			 */
+			this.setBarTime = function (n) {
+				setBarTime(n);
+			};
+
+			// 设置时间条的时间
+			function setBarTime(n) {
+				if (n < 0) n = 0;
+				if (n > 24) n = 24;
+				hour = n;
+				const margin = n * (165 / 24);
+				dvTcTimeBox.style.marginLeft = `${margin}px`;
+				const _bt = baidu.g('tcMove');
+				if (baidu.browser.ie <= 6 && baidu.browser.ie > 0) {
+					_bt.style.marginLeft = `${margin * 0.53}px`;
+				} else {
+					_bt.style.marginLeft = `${margin}px`;
+				}
+				__me.hour = hour;
+				if (bRealTime) {
+					__me.showTraffic();
+				} else {
+					__me.showTraffic({
+						predictDate: {
+							hour: __me.hour,
+							weekday: __me.weekday,
+						},
+					});
+				}
+				setTimeBox();
+			}
+
+			// 设置时间条上里边的内容
+			function setTimeBox() {
+				const margin = parseInt(dvTcTimeBox.style.marginLeft, 10);
+				let n = Math.ceil(((margin - 4) * 24) / 165);
+				hour = n;
+				__me.hour = n;
+				if (n < 10) n = `0${n}`;
+				if (bRealTime) {
+					// 更新时间跟预测的交通流量不一样
+					dvTcNow.innerHTML = __me.time;
+					dvTcTimeBox.innerHTML = `${n}:00`;
+				} else {
+					dvTcNow.innerHTML = dvTcTimeBox.innerHTML = `${n}:00`;
+				}
 			}
 		}
-	}
-};
+	};
 
-/**
- * 添加交通流量图层
- * @return 无返回值
- *
- * @example <b>参考示例：</b><br />
- * ctrl.showTraffic({predictDate:{hour:15, weekday: 5}});
- */
-TrafficControl.prototype.showTraffic = function (predictDate) {
-	let trafficLayer;
-	if (this._trafficLayer) {
-		this._map.removeTileLayer(this._trafficLayer);
-	}
-	if (predictDate) {
-		// 如果weekday不在1到7之间，则返回；
-		if (
-			predictDate.predictDate.weekday > 7
-			|| predictDate.predictDate.weekday < 1
-		) {
-			return;
+	/**
+	 * 添加交通流量图层
+	 * @return 无返回值
+	 *
+	 * @example <b>参考示例：</b><br />
+	 * ctrl.showTraffic({predictDate:{hour:15, weekday: 5}});
+	 */
+	TrafficControl.prototype.showTraffic = function (predictDate) {
+		let trafficLayer;
+		if (this._trafficLayer) {
+			this._map.removeTileLayer(this._trafficLayer);
 		}
-		trafficLayer = new BMap.TrafficLayer(predictDate);
-	} else {
-		trafficLayer = new BMap.TrafficLayer();
-	}
-	this.bShow = true;
-	if (baidu.isMobile()) {
-		baidu.dom.removeClass(this.btn, `maplibTcBtnOff${stylePrefix}`);
-	}
-	this._map.addTileLayer(trafficLayer);
-	this._trafficLayer = trafficLayer;
-};
+		if (predictDate) {
+			// 如果weekday不在1到7之间，则返回；
+			if (
+				predictDate.predictDate.weekday > 7
+				|| predictDate.predictDate.weekday < 1
+			) {
+				return;
+			}
+			trafficLayer = new BMap.TrafficLayer(predictDate);
+		} else {
+			trafficLayer = new BMap.TrafficLayer();
+		}
+		this.bShow = true;
+		if (baidu.isMobile()) {
+			baidu.dom.removeClass(this.btn, `maplibTcBtnOff${stylePrefix}`);
+		}
+		this._map.addTileLayer(trafficLayer);
+		this._trafficLayer = trafficLayer;
+	};
 
-/**
- * 隐藏交通流量图层
- * @return 无返回值
- *
- * @example <b>参考示例：</b><br />
- * ctrl.hideTraffic();
- */
-TrafficControl.prototype.hideTraffic = function () {
-	this.bShow = false;
-	if (this._trafficLayer) {
-		this._map.removeTileLayer(this._trafficLayer);
-		this._trafficLayer = null;
-	}
-	if (baidu.isMobile()) {
-		baidu.dom.addClass(this.btn, `maplibTcBtnOff${stylePrefix}`);
-	}
-};
+	/**
+	 * 隐藏交通流量图层
+	 * @return 无返回值
+	 *
+	 * @example <b>参考示例：</b><br />
+	 * ctrl.hideTraffic();
+	 */
+	TrafficControl.prototype.hideTraffic = function () {
+		this.bShow = false;
+		if (this._trafficLayer) {
+			this._map.removeTileLayer(this._trafficLayer);
+			this._trafficLayer = null;
+		}
+		if (baidu.isMobile()) {
+			baidu.dom.addClass(this.btn, `maplibTcBtnOff${stylePrefix}`);
+		}
+	};
 
-/**
- * 重新父类的remove()方法，确保当移除控件的时候，与此控件相关的overlay等都会被去掉
- * 当使用removeControl()的方法的时候，会自动调用这个方法。
- * @return 无返回值
- *
- * @example <b>参考示例：</b><br />
- * map.removeControl(ctrl);
- */
-TrafficControl.prototype.remove = function () {
-	this.hideTraffic();
-	const dvWrap = baidu.g('tcWrap');
-	// 移除在dom中添加的html
-	dvWrap.parentNode.removeChild(dvWrap);
-	BMap.Control.prototype.remove.call(this);
-	// 移除每3秒调用一次的实时流量
-	if (this.timer) {
-		clearInterval(this.timer);
-	}
-};
+	/**
+	 * 重新父类的remove()方法，确保当移除控件的时候，与此控件相关的overlay等都会被去掉
+	 * 当使用removeControl()的方法的时候，会自动调用这个方法。
+	 * @return 无返回值
+	 *
+	 * @example <b>参考示例：</b><br />
+	 * map.removeControl(ctrl);
+	 */
+	TrafficControl.prototype.remove = function () {
+		this.hideTraffic();
+		const dvWrap = baidu.g('tcWrap');
+		// 移除在dom中添加的html
+		dvWrap.parentNode.removeChild(dvWrap);
+		BMap.Control.prototype.remove.call(this);
+		// 移除每3秒调用一次的实时流量
+		if (this.timer) {
+			clearInterval(this.timer);
+		}
+	};
+
+	/**
+	 * 将服务器更新时间设置为类的属性
+	 * @param {Date}  dtNow 服务器更新时间
+	 * @param {Function} callback
+	 * @returns none
+	 */
+	TrafficControl.getTime = function (dtNow) {
+		this.curTime = Number.isNaN(dtNow) ? new Date() : new Date(dtNow);
+	};
+}
 
 /**
  * 设置获取属性
@@ -1193,15 +1192,5 @@ function scriptRequest(url, callback) {
 		script = null;
 	}, 1);
 }
-
-/**
- * 将服务器更新时间设置为类的属性
- * @param {Date}  dtNow 服务器更新时间
- * @param {Function} callback
- * @returns none
- */
-TrafficControl.getTime = function (dtNow) {
-	this.curTime = Number.isNaN(dtNow) ? new Date() : new Date(dtNow);
-};
 
 export default TrafficControl;
