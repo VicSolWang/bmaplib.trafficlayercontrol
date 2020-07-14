@@ -453,7 +453,7 @@ const stylePrefix = baidu.isMobile() ? '_mobile' : '_deskTop';
  * @example <b>参考示例：</b><br />
  */
 
-const TrafficControl = (window.BMapLib = function (options) {
+const TrafficControl = (window.BMapLib.TrafficControl = function (options) {
 	try {
 		BMap;
 	} catch (e) {
