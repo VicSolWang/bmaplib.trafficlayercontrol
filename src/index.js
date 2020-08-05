@@ -266,6 +266,18 @@ baidu.guid = '$BAIDU$';
 	baidu.isString = baidu.lang.isString;
 
 	/**
+	 * 判断目标参数是否为function或Function实例
+	 * @name baidu.lang.isFunction
+	 * @function
+	 * @grammar baidu.lang.isFunction(source)
+	 * @param {Any} source 目标参数
+	 * @returns {boolean} 类型判断结果
+	 */
+	baidu.lang.isFunction = function (source) {
+		return Object.prototype.toString.call(source) === '[object Function]';
+	};
+
+	/**
 	 * 事件监听器的存储表
 	 * @private
 	 * @meta standard
@@ -476,6 +488,9 @@ const TrafficControl = (window.BMapLib.TrafficControl = function (options) {
 	if (options.offset) {
 		this.setOffset(options.offset);
 	}
+	// 打开和关闭回调
+	this.openCallback = options && options.openCallback;
+	this.closeCallback = options && options.closeCallback;
 });
 
 function initTrafficControl() {
@@ -638,8 +653,14 @@ function initTrafficControl() {
 			if (!thisPop.isbShow()) {
 				thisPop.setPopOffset(_me.getOffset());
 				thisPop.show();
+				if (baidu.lang.isFunction(_me.openCallback)) {
+					_me.openCallback(_me);
+				}
 			} else {
 				thisPop.hide();
+				if (baidu.lang.isFunction(_me.cloasCallback)) {
+					_me.closeCallback(_me);
+				}
 			}
 		}
 
@@ -697,7 +718,7 @@ function initTrafficControl() {
 				// 是否绑定了事件，防止重复绑定
 				if (!thisPop._bind) {
 					bindEventToPopDiv(_me);
-					// 私有方法 绑定点击周一到周日事件
+					// 私有方法绑定点击周一到周日事件
 					bindEventToWeek(_me);
 					thisPop._bind = true;
 				}
@@ -798,7 +819,7 @@ function initTrafficControl() {
 		function bindEventToWeek(__me) {
 			baidu.event.on('tcWeek', 'onclick', (e) => {
 				const elem = e.target || e.srcElement;
-				if (elem.tagName.toLowerCase() == 'a') {
+				if (elem.tagName.toLowerCase() === 'a') {
 					const arrA = baidu.g('tcWeek').getElementsByTagName('a');
 					for (let i = 0; i < 7; i += 1) {
 						arrA[i].className = '';
