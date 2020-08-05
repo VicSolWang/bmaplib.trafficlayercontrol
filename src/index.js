@@ -658,7 +658,7 @@ function initTrafficControl() {
 				}
 			} else {
 				thisPop.hide();
-				if (baidu.lang.isFunction(_me.cloasCallback)) {
+				if (baidu.lang.isFunction(_me.closeCallback)) {
 					_me.closeCallback(_me);
 				}
 			}
