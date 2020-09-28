@@ -491,6 +491,8 @@ const TrafficControl = (window.BMapLib.TrafficControl = function (options) {
 	// 打开和关闭回调
 	this.openCallback = options && options.openCallback;
 	this.closeCallback = options && options.closeCallback;
+	// 获取服务器时间接口
+	this.timeUrl = options.timeUrl || '';
 });
 
 function initTrafficControl() {
@@ -688,7 +690,8 @@ function initTrafficControl() {
 			}
 
 			// 获取服务器时间
-			const curTimeUrl =				'http://its.map.baidu.com:8002/traffic/GetCurrentTime?callback=BMapLib.TrafficControl.getTime&';
+			const curTimeUrl =				_me.timeUrl
+				|| 'http://its.map.baidu.com:8002/traffic/GetCurrentTime?callback=BMapLib.TrafficControl.getTime&';
 			scriptRequest(curTimeUrl + new Date().getTime(), callback);
 			// 3分钟刷新一次,先清除之前可能存在的timer
 			if (_me.timer) {
