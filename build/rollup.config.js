@@ -11,6 +11,7 @@ import replace from '@rollup/plugin-replace';
 import { uglify } from 'rollup-plugin-uglify';
 import postcss from 'rollup-plugin-postcss';
 import del from 'rollup-plugin-delete';
+import url from 'postcss-url';
 import path from 'path';
 
 export default {
@@ -37,6 +38,11 @@ export default {
 		postcss({
 			extract: path.resolve(__dirname, '../dist/style.css'),
 			minimize: true,
+			plugins: [
+				url({
+					url: 'inline',
+				}),
+			],
 		}),
 	],
 };

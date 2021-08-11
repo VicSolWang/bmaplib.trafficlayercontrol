@@ -1,7 +1,7 @@
 .maplibTc {
 	font-size: 12px;
 	width: 243px;
-	border: 1px solid #8BA4D8;
+	border: 1px solid #8ba4d8;
 	padding: 3px 2px 0 5px;
 	background: #fff;
 	position: absolute;
@@ -12,7 +12,7 @@
 }
 
 .maplibTcColor {
-	background: url("http://api.map.baidu.com/images/tools_menu.gif") no-repeat scroll 138px -85px transparent;
+	background: url('./images/tools_menu.gif') no-repeat scroll 138px -85px transparent;
 	font-weight: bold;
 	*background-position: 128px -85px;
 }
@@ -21,9 +21,9 @@
 	float: left;
 	width: 13px;
 	height: 14px;
-	background: url(http://api.map.baidu.com/images/tools_menu.gif) no-repeat -12px -18px;
+	background: url('./images/tools_menu.gif') no-repeat -12px -18px;
 	margin-left: 5px;
-	cursor: pointer
+	cursor: pointer;
 }
 
 .maplibTcView {
@@ -31,12 +31,12 @@
 	color: #00f;
 	text-decoration: none;
 	line-height: 15px;
-	*line-height: 18px
+	*line-height: 18px;
 }
 
 .maplibTcCurTime {
 	float: left;
-	color: #666
+	color: #666;
 }
 
 .maplibTcTime {
@@ -46,12 +46,12 @@
 
 .maplibTcWeekDay {
 	height: 22px;
-	color: #6688CA;
+	color: #6688ca;
 	padding: 3px 0;
 }
 
 .maplibTcWeekDay a {
-	color: #6688CA;
+	color: #6688ca;
 	padding: 3px 2px;
 }
 
@@ -74,7 +74,8 @@
 }
 
 .maplibTcRule {
-	background: url("http://api.map.baidu.com/images/bar.gif") no-repeat scroll 0 10px transparent;
+	background: url('./images/bar.gif') no-repeat scroll
+		0 10px transparent;
 	width: 195px;
 	float: left;
 	margin-left: 20px;
@@ -91,7 +92,7 @@
 }
 
 .maplibTcTimeBox {
-	color: #6688CA;
+	color: #6688ca;
 	margin-left: 137.5px;
 	font-size: 11px;
 	overflow: hidden;
@@ -107,7 +108,7 @@
 	height: 9px;
 	cursor: pointer;
 	float: left;
-	margin-top: 3px
+	margin-top: 3px;
 }
 
 .maplibTcTimelineNext {
@@ -117,13 +118,14 @@
 	height: 9px;
 	cursor: pointer;
 	float: right;
-	margin-top: 3px
+	margin-top: 3px;
 }
 
 .maplibTcTimeMove {
 	width: 9px;
 	height: 18px;
-	background: url("http://api.map.baidu.com/images/tools_menu.gif") no-repeat scroll 0pt -32px transparent;
+	background: url('./images/tools_menu.gif') no-repeat
+		scroll 0pt -32px transparent;
 	float: left;
 	cursor: pointer;
 	margin-left: 137.5px;
@@ -135,7 +137,8 @@
 }
 
 .maplibTcBtn_deskTop {
-	background: url(http://api.map.baidu.com/images/bgs.gif) no-repeat scroll 0 -271px transparent;
+	background: url('./images/bgs.gif') no-repeat scroll 0 -271px
+		transparent;
 	cursor: pointer;
 	height: 22px;
 	width: 73px;
@@ -144,8 +147,9 @@
 }
 
 .maplibTcBtn_mobile {
-	background: url(http://api.map.baidu.com/images/traffic_bgs.png) rgba(255, 255, 255, 0.8) no-repeat scroll -30px 0;
-	border: 1px solid #AFAFAF;
+	background: url('./images/traffic_bgs.png')
+		rgba(255, 255, 255, 0.8) no-repeat scroll -30px 0;
+	border: 1px solid #afafaf;
 	background-size: 60px 30px;
 	cursor: pointer;
 	height: 30px;
@@ -155,7 +159,7 @@
 }
 
 .maplibTcBtn_deskTop {
-	background-position: 0 -249px
+	background-position: 0 -249px;
 }
 
 .maplibTcBtnOff_mobile {
@@ -167,11 +171,12 @@
 }
 
 .maplibTcOn {
-	background: #E6EFF8;
+	background: #e6eff8;
 }
 
 .maplibTcClose {
-	background: url("http://api.map.baidu.com/images/popup_close.gif") no-repeat scroll 0 0 transparent;
+	background: url('./images/popup_close.gif') no-repeat
+		scroll 0 0 transparent;
 	border: 0 none;
 	cursor: pointer;
 	height: 12px;
@@ -188,7 +193,7 @@
 	display: -webkit-box;
 	-webkit-box-align: center;
 	-webkit-border-radius: 0.3em;
-	border: .1em solid #989898;
+	border: 0.1em solid #989898;
 	-webkit-box-sizing: border-box;
 	background-color: #fff;
 	font-size: 14px;
@@ -204,21 +209,22 @@
 
 .maplibTfctr_status {
 	width: 4em;
-	margin-right: .45em;
+	margin-right: 0.45em;
 }
 
 .maplibTfctr_status span {
 	display: inline-block;
-	margin-left: .3em;
+	margin-left: 0.3em;
 	font-size: 14px;
 }
 
-.maplibTfctr div, .maplibTfctr span {
+.maplibTfctr div,
+.maplibTfctr span {
 	-webkit-box-sizing: border-box;
 }
 
 .maplibTfctr_l {
-	margin: 0 .15em;
+	margin: 0 0.15em;
 }
 
 .maplibY {
